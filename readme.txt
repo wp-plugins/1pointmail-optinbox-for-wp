@@ -1,8 +1,8 @@
 === 1PointMail Subscription Box for Wordpress ===
 Contributors: 1PointInteractive
-Tags: email, subscription, form, 1point, mail, interactive, 1pointinteractive, 1pointmail
+Tags: email, subscription, form, 1point, mail, interactive, 1pointinteractive, 1pointmail, newsletter, marketing
 Requires at least: 3.0
-Tested up to: 4.0
+Tested up to: 4.0.1
 Stable tag: trunk
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -13,8 +13,8 @@ Add a 1PointMail subscription box to your wordpress site.
 
 1PointMail Subscription Box for Wordpress provides a simple to configure, easy
 to use widget that allows you to create a basic opt-in subscription box on
-your site. The submitted data is transmitted securely back to your 1PointMail
-installation.
+your site. The submitted data is transmitted securly back to your 1PointMail
+instalation.
 
 == Installation ==
 
@@ -29,7 +29,7 @@ installation.
 = Where do I find my listid? =
 
 While you are logged into your 1PointMail portal, choose
-<strong>LISTS</strong> from the main navigation. Your <strong>ListID</strong>
+<strong>LISTS</strong> from the main navidation. Your <strong>ListID</strong>
 is the 1st column listed in the view.
 
 == Screenshots ==
@@ -41,8 +41,12 @@ is the 1st column listed in the view.
 
 = 1.0 =
 * First major release.
+= 1.2 =
+* Added an unsubscribe widget
 
 == Upgrade Notice ==
 
 = 1.0 =
+None
+= 1.2 =
 None

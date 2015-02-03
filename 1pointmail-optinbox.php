@@ -3,13 +3,13 @@
 * Plugin Name: 1PointMail Subscription Box for Wordpress
 * Plugin URI: http://www.1pointinteractive.com/1point-for-wordpress
 * Description: Add a 1PointMail subscription box to your wordpress site.
-* Version: 1.0
+* Version: 1.2
 * Author: 1PointInteractive, LLC.
 * Author URI: http://www.1pointinteractive.com
-* Tags: email, subscription, form, 1point, mail, interactive, 1pointinteractive, 1pointmail
+* Tags: email, subscription, form, 1point, mail, interactive, 1pointinteractive, 1pointmail, marketing, newsletter
 * Usage: Simply configure your 1PointMail username, password and list ID and you are ready to use the widget!
 * Requires at least: 3.0
-* Tested up to: 4.0
+* Tested up to: 4.0.1
 License: GPL v3
 
 1PointMail Subscription Box for Wordpress
@@ -383,8 +383,130 @@ function opmwp_boptin_subscribe() {
 	echo $msg;
 	die();
 } // EO Function
+
 // Register the action
 add_action('wp_ajax_opmwp_boptin_subscribe','opmwp_boptin_subscribe');
+// Register the action for NON AUTHENTICATED users
+add_action('wp_ajax_nopriv_opmwp_boptin_subscribe','opmwp_boptin_subscribe');
+
+
+// Function called by the unsubscribe box
+function opmwp_boptin_unsubscribe() {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . "onepointmail";
+        $id = '1';
+
+        $sql = $wpdb->prepare("SELECT endpoint FROM " . $table_name . " WHERE ID = %d",$id);
+        $endpoint = $wpdb->get_var($sql);
+
+        $sql = $wpdb->prepare("SELECT username FROM " . $table_name . " WHERE ID = %d",$id);
+        $username = $wpdb->get_var($sql);
+
+        $sql = $wpdb->prepare("SELECT password FROM " . $table_name . " WHERE ID = %d",$id);
+        $password = $wpdb->get_var($sql);
+
+        $email  = isset($_POST['boptinu_email']) ? $_POST['boptinu_email'] : null;
+
+        $msg = "Error";
+
+        if (($endpoint!=null)&&($username!=null)&&($password!=null)&&($email!=null)) {
+                $url  = $endpoint . "/UnsubscribeContactByEmailAddress?UserId=" . $username . "&Password=" . $password;
+                $url .= "&EmailAddress=" . $email;
+
+                #$data = @file_get_contents( $url ); // @ will surpress errors
+
+		if (is_email($email)) {
+		// If the email is valid via Wordpress, then continue
+			$url  = $endpoint . "/UnsubscribeContactByEmailAddress";
+			$data = wp_remote_post($url, array(
+						'method' => 'POST',
+						'timeout' => 45,
+						'redirection' => 5,
+						'httpversion' => '1.0',
+						'blocking' => true,
+						'headers' => array(),
+						'body' => array('UserId' => $username, 'Password' => $password, 'EmailAddress' => $email),
+						'cookies' => array()
+					)
+			); // EO wp_remote_post
+
+                	// test for wp errors
+	                if( is_wp_error( $data) ) {
+	                        // show error message to admins
+	                        $this->show_error( "HTTP Error: " . $data->get_error_message() );
+	                        return false;
+	                }
+		
+			// Regex to get the message response from the API
+			$regex = '%Message>(.*?)</Message>%';
+			preg_match( $regex, $data['body'], $matches );
+	
+			// Set the string value of the message to $ret
+			$ret = false;
+			if( $matches && $matches[1] ) $ret = $matches[1];
+	
+			// Test our cases...
+			if (strpos($ret, 'exist in Database.') !== false) {
+				$msg = "exists";
+			} elseif (strpos($ret, 'cannot be unsubscribed again') !== false) {
+				$msg = "already";
+			} elseif (strpos($ret, 'unsubscribed successfully.') !== false) {
+				$msg = "ok";
+			} // EO if
+	
+		} else {
+		// Wordpress says no-go for the email format, pass back invalid for the JS and die...
+			$msg = "invalid";
+			echo $msg;
+			die();
+		} // EO if is_email
+
+#echo "E: $endpoint <br>\n";
+#echo "U: $username <br>\n";
+#echo "P: $password <br>\n";
+#echo "E: $email <br>\n";
+
+#                // Regex to get the message response from the API
+#                $regex = '%Message>(.*?)</Message>%';
+#                preg_match( $regex, $data, $matches );
+#
+#                // Set the string value of the message to $ret
+#                $ret = false;
+#                if( $matches && $matches[1] ) $ret = $matches[1];
+#
+#                // 1st use wordpress is_email to test email syntax
+#                if (is_email($email)) {
+#                        // Valid email - do nothing and continue
+#                } else {
+#                        // No use in calling the API for the fun of it
+#                        // if the email is not valid...
+#                        // pass back invalid for the JS and die early...
+#                        $msg = "invalid";
+#                        echo $msg;
+#                        die();
+#                } // EO if
+#
+#                // Test our cases...
+#                if (strpos($ret, 'exist in Database.') !== false) {
+#                        $msg = "exists";
+#		} elseif (strpos($ret, 'cannot be unsubscribed again') !== false) {
+#			$msg = "already";
+#                } elseif (strpos($ret, 'unsubscribed successfully.') !== false) {
+#                        $msg = "ok";
+#                } // EO if
+#echo "R: $ret<br>\n";
+#echo "M:$msg<br>\n";
+        } // EO If
+
+        echo $msg;
+        die();
+} // EO Function
+
+// Register the action
+add_action('wp_ajax_opmwp_boptin_unsubscribe','opmwp_boptin_unsubscribe');
+// Register the action for NON AUTHENTICATED users
+add_action('wp_ajax_nopriv_opmwp_boptin_unsubscribe','opmwp_boptin_unsubscribe');
 
 // Dashboard - Run Sync
 function opmwp_runsync() {
@@ -461,6 +583,67 @@ function opmwp_boptin_script() {
 ==================================================
 ========== Widget(s)
 **/
+class opwmpUnsub extends WP_Widget {
+	function opwmpUnsub() {
+		$widget_options = array (
+					'classname'	=> 'widget-opwmpUnsub',
+					'description'	=> '1PointMail Unsubscribe Box',
+				);
+		parent::WP_Widget('opmwp_widget_unsub','1PointMail Unsubscribe Box',$widget_options);
+	} // EO Function
+
+	function widget($args,$instance) {
+		extract($args, EXTR_SKIP);
+		
+		$title		= ($instance['title']) ? $instance['title'] : 'Unsubscribe';
+		$submit_val     = ($instance['submit_val']) ? $instance['submit_val'] : 'Unsubscribe';
+		$pb             = ($instance['cb_pb']) ? 'true' : 'false';
+
+		// Crate the Widget display
+		$body = "";
+		$body .= "<input id='boptinu_email' name='boptinu_email' placeholder='Email Address'><br>";
+                if('on' == $instance['cb_pb'] ) {
+                        $body .= "Powered By <a href='http://www.1pointinteractive.com' target='_blank'>1PointMail</a>!";
+                }; // EO If
+
+                $body .= "<div id='boptin_unsubscribe'>";
+                $body .= "<input type='submit' id='submit' class='button button-primary' value='" . $submit_val . "'></div>";
+                $body .= "<div id='boptinInfoUnSub'><p class='description'>&nbsp;</p></div>";
+                ?>
+                <?php echo $before_widget; ?>
+                <?php echo $before_title . $title . $after_title ?>
+                <p><?php echo $body ?></p>
+                <?php
+	} // EO Function
+
+	function form($instance) {
+                ?>
+                <p>
+                <label for="<?php echo $this->get_field_id('title'); ?>">Title:</label>
+                <input id="<?php echo $this->get_field_id('title'); ?>"
+                        name="<?php echo $this->get_field_name('title'); ?>"
+                        value="<?php echo esc_attr( $instance['title'] ); ?>"
+                        type="text" class="widefat" />
+                </p>
+                <p>
+                <label for="<?php echo $this->get_field_id('submit_val'); ?>">UnSubscribe Button Text:</label>
+                <input id="<?php echo $this->get_field_id('submit_val'); ?>"
+                        name="<?php echo $this->get_field_name('submit_val'); ?>"
+                        value="<?php echo esc_attr( $instance['submit_val'] ); ?>"
+                        type="text" class="" />
+                </p>
+                <hr>
+                <p>
+                Display Powered By 1PointMail?
+                &nbsp;&nbsp;&nbsp;
+                <input class="checkbox" type="checkbox" <?php checked($instance['cb_pb'], 'on'); ?>
+                        id="<?php echo $this->get_field_id('cb_pb'); ?>"
+                        name="<?php echo $this->get_field_name('cb_pb'); ?>" />
+                </p>
+                <hr>
+                <?php
+	} // EO Function
+} // EO Class
 
 class opmwpBasicOptin extends WP_Widget {
 	function opmwpBasicOptin() {
@@ -577,6 +760,11 @@ function opmwp_basicoptin_init() {
 	register_widget("opmwpBasicOptin");
 } // EO Function
 add_action('widgets_init','opmwp_basicoptin_init');
+
+function opmwp_unsub_init() {
+	register_widget("opwmpUnsub");
+} // EO Function
+add_action('widgets_init','opmwp_unsub_init');
 
 
 /**
